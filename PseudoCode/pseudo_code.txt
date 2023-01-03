@@ -1,0 +1,143 @@
+BranchAndBound_DFS_TSP [Traveling SalesMan Problem]
+/*    p = program
+      Heuristic = admissible heuristic function (lower bound)
+      LowerBound = known path cost + heuristic estimated cost
+      UpperBoundInitial = infinity (default)
+      CurrentNode = node that is being expanded
+      FrontierStack <node, node_domain> = frontier, LIFO Queue or Stack, of the nodes that can be expanded.
+      DomainPriorityQueue <node, cost> = the domain for a node */
+function Heuristic()
+  ∑ (sum of cost of 2 least cost edges of unassigned node) / 2
+function LowerBound()
+  known path cost(p.CurrentAssignment()) + Heuristic()
+function BranchAndBound_DFS_TSP(p, LowerBound, UpperBoundInitial)
+  CurrentNode <-- p.AssignRootNode()
+  DomainPriorityQueue <-- p.OrderDomainValues(CurrentNode, LowerBound)
+  FrontierStack.Push(<CurrentNode, DomainPriorityQueue>)
+  best_assignment <-- NULL
+  UpperBound <-- UpperBoundInitial
+  while not FrontierStack.IsEmpty()
+      <CurrentNode, DomainPriorityQueue> <-- FrontierStack.Top()
+      CurrentValue <-- DomainPriorityQueue.Pop()
+      p.AssignVariable(CurrentNode, CurrentValue)
+      if LowerBound(p) >= UpperBound
+          continue
+      if p.HasFullAssignment()
+          UpperBound <-- LowerBound(p)
+          best_assignment <-- p.CurrentAssignment()
+      else
+          CurrentNode’ <-- p.PickUnAssignedVariable()
+          DomainPriorityQueue’ <-- p.OrderDomainValues(CurrentNode’, LowerBound)
+          FrontierStack.Push(<CurrentNode’, DomainPriorityQueue’>)    
+   return best_assignment
+
+
+Annotated BranchAndBound_DFS_TSP [Traveling Sales Man Problem]
+/*
+        p = program
+        f = admissible heuristic function (lower bound)
+            heuristic function = 0.5 * sigma(k(a + b))
+            where k is current node, a and b are the 2 paths connected to node k,
+            and either the a or b path are equivlant to the expanded node's path when possible.
+        U_initial = infinity
+        var = current node
+        Stack <node, node_domain> = frontier, LIFO Queue or Stack, of the nodes that can be expanded.
+        domain <node, cost> = the domain for a given node (all of the nodes and their path costs that can be reached directly from the current node)
+                             Implemented as a priority Queue sorted on least cost; least cost is on top of queue.
+*/ 
+function BranchAndBound_DFS_TSP(p, f, U_initial)
+        /* Pick random node as the starting/current node to expand on */
+        /* TODO: do we need a data structure to keep track of unassigned variables? Maybe a hash map if so. */
+        var <-- p.PickUnAssignedVariable()
+
+        /*
+           Calculate the domain of the current (expanded) node using heuristic function.
+                The nodes of the current domain are iterated through
+                and the heuristic function is applied to each node of its domain.
+                The nodes are then ordered by priority [least cost first].
+        */
+        domain <-- p.OrderDomainValues(var, f)
+
+        /*
+          Push the variable and its domain to the frontier stack
+          Since the domains of variables are sorted by costs,
+          the same order of costs are maintained for each variable in the Stack.
+        */
+        Stack.Push(<var, domains>)
+
+        /* initially the best known solution is not known */
+        best_assignment <-- NULL
+
+        /*
+        Initial upper bound is equal to first lower bound calculated.
+           first_lower_bound = 0.5 * sigma(k(a + b))
+           where k is current node, a and b are the
+           2 shortest paths connected to node k.
+        */
+        U <-- U_initial
+
+        /* while loop: runs until there are no more node/domains in the frontier */
+        while not Stack.IsEmpty()
+
+                /* 
+                    Expand the next node (but do not remove it yet from the Stack)
+                    and that node's domain by peeking the top of the Stack [LIFO].
+                    Assign var to expanding node, and domain to expanding node's domain
+                */
+                <var, domain> <-- Stack.Top()
+
+                /* 
+                    If the expanding node from the frontier has no domain (empty priority queue),
+                    unassign current node and then remove that node/domain from the Stack
+                */
+                /* Not needed because we have a full circle */
+                if domain.IsEmpty()
+                        p.UnAssignVariable(var)
+                        Stack.Pop()
+
+                /* The expanded node has nodes/action costs in its domain */
+                else
+                        /* Pop the best value (shortest distance) action from the expanded node's domain queue */
+                        value <-- domain.Pop()
+
+                        /* Assign the current node and domain variables to the popped off node and its domain. */
+                        p.AssignVariable(var, value)
+
+                        /* 
+                           If the new current node's lower bound is greater than or equal to the upper bound,
+                           this node is no longer considered for expanding and the program continues to next iteration.
+                        */
+                        if f(p) >= U
+                                continue
+
+                        /* 
+                           TODO ?????
+                           If heuristic is less than upper bound,
+                           then check if it has full assignment [is it complete or not]
+                           Complete = every node has been reached only once.
+                        */
+                        if p.HasFullAssignment()
+                                /* 
+                                   If it is complete,
+                                   assign the lower bound of the current node as the new upper bound
+                                   and assign route as current best assignment
+                                 */
+                                U <-- f(p)
+                                /* TODO Backtrack the expanded nodes??? */
+                                best_assignment <-- p.CurrentAssignment()
+                        
+                        else
+                                /* Assign next unassigned node as current node */
+                                var <-- p.PickUnAssignedVariable()
+
+                                /* 
+                                  Order the domain (priority queue) of
+                                  the new current node in terms of priority
+                                */
+                                domain <-- p.OrderDomainValues(var_prime, f)
+                                
+                                /* Push the children of the variable to the frontier stack */
+                                Stack.Push(<var_prime, values_prime>)
+        
+        /* the best solution has been determined */         
+        return best_assignment 
